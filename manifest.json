@@ -1,6 +1,6 @@
 {
-  "name": "My Apps Script PWA",
-  "short_name": "GAS PWA",
+  "name": "Energy Monitor",
+  "short_name": "EnergyMeter",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -18,3 +18,5 @@
     }
   ]
 }
+
+
