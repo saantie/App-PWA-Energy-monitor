@@ -1,0 +1,19 @@
+/*
+  # Cache Control
+  Cache-Control: public, max-age=0, must-revalidate
+  
+  # PWA Headers
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/service-worker.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/manifest.json
+  Content-Type: application/manifest+json
+  Cache-Control: public, max-age=3600
+
+/icons/*
+  Cache-Control: public, max-age=31536000, immutable
