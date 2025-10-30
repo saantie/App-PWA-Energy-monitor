@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Energy Monitor - Solar Analysis</title>
+  <meta name="description" content="แอพติดตามการใช้พลังงานและพลังงานแสงอาทิตย์">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Icons สำหรับ iOS และ Android -->
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- สีธีมสำหรับมือถือ -->
+  <meta name="theme-color" content="#2196f3">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="EnergyMeter">
+  
+  <!-- สำหรับ Microsoft -->
+  <meta name="msapplication-TileColor" content="#2196f3">
+  <meta name="msapplication-TileImage" content="icons/icon-192.png">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: #f7f7f7;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Loading screen */
+    #loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.5s ease;
+    }
+
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: white;
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    /* iframe container */
+    .iframe-container {
+      width: 100%;
+      height: 100vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    iframe {
+      border: none;
+      width: 100%;
+      flex: 1;
+      background: white;
+    }
+
+    /* Install prompt - Modern Card Style */
+    #installPrompt {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      border-radius: 16px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 999;
+      max-width: 380px;
+      width: 90%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      animation: slideUp 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateX(-50%) translateY(120px) scale(0.8);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(-50%) translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    #installPrompt.show {
+      display: flex;
+    }
+
+    #installPrompt .prompt-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    #installPrompt .prompt-icon {
+      width: 48px;
+      height: 48px;
+      background: white;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+
+    #installPrompt .prompt-title {
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.2;
+      flex: 1;
+    }
+
+    #installPrompt .close-btn {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+    }
+
+    #installPrompt .close-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    #installPrompt .close-btn:active {
+      transform: scale(0.9);
+    }
+
+    #installPrompt .prompt-text {
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    #installPrompt .prompt-features {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    #installPrompt .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      font-size: 13px;
+    }
+
+    #installPrompt .feature-item::before {
+      content: "✓";
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    #installPrompt button#installBtn {
+      background: white;
+      color: #667eea;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
+      transition: all 0.2s;
+      width: 100%;
+      font-family: inherit;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    #installPrompt button#installBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+
+    #installPrompt button#installBtn:active {
+      transform: translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      #installPrompt {
+        bottom: 12px;
+        left: 12px;
+        right: 12px;
+        transform: none;
+        max-width: none;
+        width: auto;
+        padding: 18px;
+      }
+
+      @keyframes slideUp {
+        from {
+          transform: translateY(120px) scale(0.9);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0) scale(1);
+          opacity: 1;
+        }
+      }
+
+      #installPrompt .prompt-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 24px;
+      }
+
+      #installPrompt .prompt-title {
+        font-size: 16px;
+      }
+
+      #installPrompt .prompt-text {
+        font-size: 13px;
+      }
+
+      #installPrompt .feature-item {
+        font-size: 12px;
+      }
+
+      #installPrompt button#installBtn {
+        padding: 12px 20px;
+        font-size: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Loading Screen -->
+  <div id="loading">
+    <div class="loader"></div>
+    <div class="loading-text">กำลังโหลด...</div>
+  </div>
+
+  <!-- Install Prompt - Modern Card -->
+  <div id="installPrompt">
+    <div class="prompt-header">
+      <div class="prompt-icon">⚡</div>
+      <div class="prompt-title">ติดตั้ง Energy Monitor</div>
+      <button class="close-btn" id="closePrompt" aria-label="ปิด">✕</button>
+    </div>
+    <div class="prompt-text">
+      เพิ่มแอพไปยังหน้าจอหลักเพื่อการเข้าถึงที่รวดเร็ว
+    </div>
+    <div class="prompt-features">
+      <div class="feature-item">ใช้งานแบบออฟไลน์</div>
+      <div class="feature-item">เปิดได้เหมือนแอพปกติ</div>
+      <div class="feature-item">อัปเดตอัตโนมัติ</div>
+    </div>
+    <button id="installBtn">ติดตั้งเลย</button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="iframe-container">
+    <iframe 
+      id="mainFrame"
+      src="https://script.google.com/macros/s/AKfycbyiA_ifaXKxxC1o0lIUZh4EtJLAD_8kptWQNs_fWjs4um_DagwWiNGIrMat3p0HDytf/exec"
+      allow="accelerometer; gyroscope"
+      loading="lazy">
+    </iframe>
+  </div>
+
+  <script>
+    // ซ่อน loading screen เมื่อโหลดเสร็จ
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('loading').classList.add('hidden');
+      }, 1000);
+    });
+
+    // iframe load event
+    document.getElementById('mainFrame').addEventListener('load', () => {
+      console.log('✅ Content loaded successfully');
+    });
+
+    // ลงทะเบียน Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(registration => {
+            console.log('✅ Service Worker registered successfully:', registration.scope);
+          })
+          .catch(err => {
+            console.error('❌ Service Worker registration failed:', err);
+          });
+      });
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+    const installPrompt = document.getElementById('installPrompt');
+    const installBtn = document.getElementById('installBtn');
+    const closePrompt = document.getElementById('closePrompt');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installPrompt.classList.add('show');
+      console.log('📱 PWA install prompt ready');
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response: ${outcome}`);
+        deferredPrompt = null;
+        installPrompt.classList.remove('show');
+      }
+    });
+
+    closePrompt.addEventListener('click', () => {
+      installPrompt.classList.remove('show');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      console.log('✅ PWA installed successfully!');
+      installPrompt.classList.remove('show');
+      deferredPrompt = null;
+    });
+
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+      console.log('✅ Running in standalone mode');
+    }
+  </script>
+</body>
+</html>
